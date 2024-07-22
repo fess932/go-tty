@@ -73,15 +73,25 @@ func (tty *TTY) close() error {
 	if tty.out == nil {
 		return nil
 	}
+	if tty.in == nil {
+		return nil
+	}
+
 	signal.Stop(tty.ss)
 	close(tty.ss)
 	err1 := unix.IoctlSetTermios(int(tty.in.Fd()), ioctlWriteTermios, &tty.termios)
 	err2 := tty.out.Close()
+	err3 := tty.in.Close()
 	tty.out = nil
+	tty.in = nil
 	if err1 != nil {
 		return err1
 	}
-	return err2
+	if err2 != nil {
+		return err2
+	}
+
+	return err3
 }
 
 func (tty *TTY) size() (int, int, error) {
