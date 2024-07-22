@@ -36,12 +36,11 @@ func open(path string) (*TTY, error) {
 	}
 	tty.out = out
 
-	fd := int(tty.in.Fd())
-	if err = syscall.SetNonblock(fd, true); err != nil {
+	if err = syscall.SetNonblock(int(tty.in.Fd()), true); err != nil {
 		return nil, err
 	}
 
-	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
+	termios, err := unix.IoctlGetTermios(int(tty.in.Fd()), ioctlReadTermios)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +50,7 @@ func open(path string) (*TTY, error) {
 	termios.Lflag &^= unix.ECHO | unix.ICANON /*| unix.ISIG*/
 	termios.Cc[unix.VMIN] = 1
 	termios.Cc[unix.VTIME] = 0
-	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios, termios); err != nil {
+	if err := unix.IoctlSetTermios(int(tty.in.Fd()), ioctlWriteTermios, termios); err != nil {
 		return nil, err
 	}
 
@@ -129,7 +128,10 @@ func (tty *TTY) raw() (func() error, error) {
 	termios.Cflag |= unix.CS8
 	termios.Cc[unix.VMIN] = 1
 	termios.Cc[unix.VTIME] = 0
-	if err := unix.IoctlSetTermios(int(tty.in.Fd()), ioctlWriteTermios, termios); err != nil {
+	if err = unix.IoctlSetTermios(int(tty.in.Fd()), ioctlWriteTermios, termios); err != nil {
+		return nil, err
+	}
+	if err = syscall.SetNonblock(int(tty.in.Fd()), true); err != nil {
 		return nil, err
 	}
 
