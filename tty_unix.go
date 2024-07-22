@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"golang.org/x/sys/unix"
 )
@@ -35,7 +36,12 @@ func open(path string) (*TTY, error) {
 	}
 	tty.out = out
 
-	termios, err := unix.IoctlGetTermios(int(tty.in.Fd()), ioctlReadTermios)
+	fd := int(tty.in.Fd())
+	if err = syscall.SetNonblock(fd, true); err != nil {
+		return nil, err
+	}
+
+	termios, err := unix.IoctlGetTermios(fd, ioctlReadTermios)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +51,7 @@ func open(path string) (*TTY, error) {
 	termios.Lflag &^= unix.ECHO | unix.ICANON /*| unix.ISIG*/
 	termios.Cc[unix.VMIN] = 1
 	termios.Cc[unix.VTIME] = 0
-	if err := unix.IoctlSetTermios(int(tty.in.Fd()), ioctlWriteTermios, termios); err != nil {
+	if err := unix.IoctlSetTermios(fd, ioctlWriteTermios, termios); err != nil {
 		return nil, err
 	}
 
